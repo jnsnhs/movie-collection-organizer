@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QDialog
 )
 
-from ..defaults import SECRET_DIR
+from ..defaults import PACKAGE_DIR
 
 BASE_URL = "http://www.omdbapi.com/?apikey="
 
@@ -19,7 +19,7 @@ BASE_URL = "http://www.omdbapi.com/?apikey="
 def get_apikey():
     apikey = ""
     try:
-        with open(os.path.join(SECRET_DIR, "apikey.txt"), "rt") as file:
+        with open(os.path.join(PACKAGE_DIR, "apikey.txt"), "rt") as file:
             apikey = file.read()
     except Exception:
         print("Unable to get api key.")

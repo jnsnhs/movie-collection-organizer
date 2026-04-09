@@ -1,4 +1,3 @@
-import csv
 import json
 from PySide6.QtWidgets import (
     QWidget,
@@ -12,19 +11,7 @@ from PySide6.QtGui import QIcon, QAction
 from PySide6.QtWidgets import QLineEdit
 
 from .addmovie import AddWindow
-
-MOVIE_ATTRIBUTES = (
-    "title",
-    "director",
-    "writer",
-    "actors",
-    "year",
-    "release",
-    "runtime",
-    "language",
-    "country",
-    "genre"
-    )
+from ..defaults import MOVIE_ATTRIBUTES
 
 
 class MainWindow(QMainWindow):
@@ -40,8 +27,6 @@ class MainWindow(QMainWindow):
         self.current_data = None
         self.movies: list[dict] = list()
 
-        self.create_menu_bar()
-
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu("File")
         edit_menu = menu_bar.addMenu("Edit")
@@ -49,7 +34,7 @@ class MainWindow(QMainWindow):
 
         # new menu item
         new_action = QAction(QIcon('./assets/new.png'), '&New', self)
-        new_action.triggered.connect(lambda: print("new"))
+        new_action.triggered.connect(lambda: self.create_new_database())
         new_action.setShortcut('Ctrl+N')
         file_menu.addAction(new_action)
 
@@ -57,7 +42,7 @@ class MainWindow(QMainWindow):
 
         # open menu item
         open_action = QAction('&Open File...', self)
-        open_action.triggered.connect(lambda: self.on_click_button_load_data())
+        open_action.triggered.connect(lambda: self.load_database())
         open_action.setShortcut('Ctrl+O')
         file_menu.addAction(open_action)
 
@@ -72,7 +57,7 @@ class MainWindow(QMainWindow):
         # save as menu item
         save_as_action = QAction('&Save As...', self)
         save_as_action.triggered.connect(
-            lambda: self.on_click_button_save_data())
+            lambda: self.save_database())
         save_as_action.setShortcut('Ctrl+Shift+S')
         file_menu.addAction(save_as_action)
 
@@ -81,14 +66,14 @@ class MainWindow(QMainWindow):
         # exit menu item
         exit_action = QAction('&Exit', self)
         exit_action.triggered.connect(
-            lambda: self.on_click_menu_exit())
+            lambda: self.exit_application())
         exit_action.setStatusTip("Close Application")
         file_menu.addAction(exit_action)
 
         # add menu item
         about_action = QAction('&Add Movie...', self)
         about_action.triggered.connect(
-            lambda: self.on_click_button_add_movie())
+            lambda: self.add_movie())
         about_action.setShortcut("Ctrl+A")
         edit_menu.addAction(about_action)
 
@@ -99,7 +84,7 @@ class MainWindow(QMainWindow):
 
         self.status_bar = self.statusBar()
 
-        self.create_table()
+        self.initialize_table()
 
         # self.import_data()
         # self.update_table()
@@ -116,10 +101,7 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(container)
 
-    def create_menu_bar(self) -> None:
-        pass
-
-    def create_table(self) -> None:
+    def initialize_table(self) -> None:
         self.table = QTableWidget()
         self.table.horizontalHeader().setStretchLastSection(False)
         self.table.verticalHeader().setVisible(False)
@@ -131,29 +113,19 @@ class MainWindow(QMainWindow):
         self.table.setColumnCount(len(MOVIE_ATTRIBUTES))
         self.table.setHorizontalHeaderLabels(MOVIE_ATTRIBUTES)
         # self.table.setColumnWidth(1, 45)
-        self.table.horizontalHeader().resizeSection(1, 15)
+        # self.table.horizontalHeader().resizeSection(1, 15)
         self.table.horizontalHeader().setSectionsMovable(True)
-
-    def import_data(self) -> None:
-        with open("./data.csv") as file:
-            csv_data = csv.reader(file)
-            for line in csv_data:
-                movie = dict()
-                for i in range(len(line)):
-                    movie[MOVIE_ATTRIBUTES[i]] = line[i]
-                self.movies.append(movie)
 
     def update_table(self) -> None:
         # horizontalHeaderItem(column)
-        self.table.clearContents()
+        self.table.setRowCount(0)
         for row_index in range(len(self.movies)):
             self.table.insertRow(row_index)
             for (col_index, attribute) in enumerate(MOVIE_ATTRIBUTES):
                 item = QTableWidgetItem(self.movies[row_index][attribute])
                 self.table.setItem(row_index, col_index, item)
 
-    def on_click_button_save_data(self) -> None:
-
+    def save_database(self) -> None:
         movies = list()
         for row_index in range(self.table.rowCount()):
             single_movie = dict()
@@ -181,7 +153,7 @@ class MainWindow(QMainWindow):
             data = json.load(file_content)
         return data
 
-    def on_click_button_load_data(self) -> None:
+    def load_database(self) -> None:
         filename, _ = QFileDialog.getOpenFileName(
             parent=self,
             caption="Open Data File",
@@ -190,18 +162,21 @@ class MainWindow(QMainWindow):
         )
         if filename:
             data = self.load_json_file_to_dict(filename)
-            self.table.clearContents()
+            self.table.setRowCount(0)
             for movie in data:
                 self.add_new_bottom_row(movie)
 
-    def on_click_button_add_movie(self) -> None:
+    def add_movie(self) -> None:
         print("About to add a new movie.")
         self.add_window = AddWindow(self)
         self.add_window.show()
 
-    def on_click_menu_exit(self) -> None:
-        self.destroy()
-
+    def exit_application(self) -> None:
+        self.close()
+        
+    def create_new_database(self):
+        self.table.setRowCount(0)
+    
     def add_new_bottom_row(self, new_movie_data: dict) -> None:
         row_index = self.table.rowCount()
         self.table.insertRow(row_index)
@@ -231,5 +206,4 @@ class MainWindow(QMainWindow):
                 if item and text.lower() in item.text().lower():
                     should_show = True
                     break
-
             self.table.setRowHidden(row, not should_show)
