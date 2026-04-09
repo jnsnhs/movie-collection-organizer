@@ -59,7 +59,7 @@ class AddWindow(QDialog):
     def on_click_button_search(self) -> None:
         self.window_api_search = GetApiDataWindow(self)
 
-    def on_click_button_add(self) -> None:
+    def on_click_button_add(self):
         if self.entry_title.text().strip():
             new_movie = {
                 "title": self.entry_title.text(),
@@ -73,7 +73,8 @@ class AddWindow(QDialog):
                 "country": self.entry_country.text(),
                 "genre": self.entry_genre.text()
             }
-            self.main_window.add_new_bottom_row(new_movie)
+            self.main_window.current_database.append(new_movie)
+            self.main_window.update_table_to_match_db()
             self.close()
         else:
             no_title_msg = QMessageBox()
