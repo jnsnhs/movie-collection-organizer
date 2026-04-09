@@ -59,13 +59,6 @@ class MainWindow(QMainWindow):
         save_as_action.setShortcut('Ctrl+Shift+S')
         file_menu.addAction(save_as_action)
 
-        file_menu.addSeparator()
-
-        # exit menu item
-        exit_action = QAction('&Exit', self)
-        exit_action.triggered.connect(lambda: self.on_click_exit())
-        file_menu.addAction(exit_action)
-
         # add menu item
         about_action = QAction('&Add Movie...', self)
         about_action.triggered.connect(lambda: self.on_click_add_movie())
@@ -98,9 +91,6 @@ class MainWindow(QMainWindow):
         self.table.verticalHeader().setVisible(False)
         self.table.setShowGrid(True)
         self.table.setSortingEnabled(False)
-        # self.table.cellClicked.connect(self.cell_clicked)
-        # self.table.cellDoubleClicked.connect(self.cell_double_clicked)
-        # self.table.cellChanged.connect(self.cell_changed)
         self.table.setColumnCount(len(MOVIE_ATTRIBUTES))
         self.table.setHorizontalHeaderLabels(MOVIE_ATTRIBUTES)
         # self.table.setColumnWidth(1, 45)
@@ -183,17 +173,6 @@ class MainWindow(QMainWindow):
         self.add_window = AddWindow(self)
         self.add_window.show()
 
-    def on_click_exit(self) -> None:
-        if self.are_changes_unsaved() is True:
-            msg = QMessageBox()
-            msg.setWindowTitle("Unsaved Changes")
-            msg.setText("Do you really want to quit?")
-            msg.setStandardButtons(QMessageBox.Ok)  # type: ignore
-            msg.setIcon(QMessageBox.Critical)  # type: ignore
-            msg.exec()
-        else:
-            self.close()
-
     def on_click_about(self) -> None:
         msg = QMessageBox()
         msg.setWindowTitle("Movie Collection Organizer")
@@ -234,20 +213,23 @@ class MainWindow(QMainWindow):
         for col_index, item in enumerate(new_movie_data.items()):
             self.table.setItem(row_index, col_index, QTableWidgetItem(item[1]))
 
-    def cell_clicked(self, row, column) -> None:
-        print(f"Cell clicked: row {row}, column {column}")
-        item = self.table.item(row, column)
-        if item:
-            print(f"Content: {item.text()}")
-
-    def cell_double_clicked(self, row, column) -> None:
-        print(f"Editing cell at row {row}, column {column}")
-
-    def cell_changed(self, row, column) -> None:
-        item = self.table.item(row, column)
-        if item:
-            print(f"Cell at row {row}, column {column} changed "
-                  f"to: {item.text()}")
+    def closeEvent(self, event):
+        if self.are_changes_unsaved():
+            confirmation = QMessageBox.question(
+                self,
+                "Save Changes?",
+                "File has been modified, save changes?",
+                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel  # type: ignore
+            )
+            if confirmation == QMessageBox.Yes:  # type: ignore
+                event.ignore()
+                self.on_click_save()
+            elif confirmation == QMessageBox.No:  # type: ignore
+                event.accept()
+            else:
+                event.ignore()
+        else:
+            event.accept()
 
     def filter_table(self, text) -> None:
         for row in range(self.table.rowCount()):
