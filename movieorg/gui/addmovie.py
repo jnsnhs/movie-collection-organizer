@@ -7,7 +7,6 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QMessageBox
 )
-
 from .apirequest import GetApiDataWindow
 
 
@@ -60,29 +59,53 @@ class AddWindow(QDialog):
         self.window_api_search = GetApiDataWindow(self)
 
     def on_click_button_add(self):
-        if self.entry_title.text().strip():
-            new_movie = {
-                "title": self.entry_title.text(),
-                "director": self.entry_director.text(),
-                "writer": self.entry_writer.text(),
-                "actors": self.entry_actors.text(),
-                "year": self.entry_year.text(),
-                "release": self.entry_release.text(),
-                "runtime": self.entry_runtime.text(),
-                "language": self.entry_language.text(),
-                "country": self.entry_country.text(),
-                "genre": self.entry_genre.text()
-            }
-            self.main_window.current_database.append(new_movie)
-            self.main_window.update_table_to_match_db()
-            self.close()
-        else:
+        if self.entry_title.text().strip() == "":
             no_title_msg = QMessageBox()
-            no_title_msg.setWindowTitle("Error: unable to add new entry")
+            no_title_msg.setWindowTitle("Unable to add new entry")
             no_title_msg.setText("Please enter a title to add a movie.")
             no_title_msg.setStandardButtons(QMessageBox.Ok)  # type: ignore
             no_title_msg.setIcon(QMessageBox.Critical)  # type: ignore
             no_title_msg.exec()
+        elif self.is_title_in_database():
+            msg = QMessageBox()
+            msg.setWindowTitle("Title already in database")
+            msg.setText(
+                f"A movie with the title '{self.entry_title.text()}' "
+                "is already part of your database.\nDo you really want to "
+                "add another movie of the same title?")
+            msg.setStandardButtons(
+                QMessageBox.Yes | QMessageBox.No)  # type: ignore
+            msg.setIcon(QMessageBox.Question)  # type: ignore
+            user_input = msg.exec()
+            if user_input == QMessageBox.Yes:  # type: ignore
+                self.add_movie_to_database()
+                self.close()
+        else:
+            self.add_movie_to_database()
+            self.close()
+
+    def add_movie_to_database(self) -> None:
+        new_movie = {
+            "title": self.entry_title.text(),
+            "director": self.entry_director.text(),
+            "writer": self.entry_writer.text(),
+            "actors": self.entry_actors.text(),
+            "year": self.entry_year.text(),
+            "release": self.entry_release.text(),
+            "runtime": self.entry_runtime.text(),
+            "language": self.entry_language.text(),
+            "country": self.entry_country.text(),
+            "genre": self.entry_genre.text()
+        }
+        self.main_window.current_database.append(new_movie)
+        self.main_window.update_table_to_match_db()
+
+    def is_title_in_database(self) -> bool:
+        current_db = self.main_window.current_database
+        for movie in current_db:
+            if movie["title"] == self.entry_title.text().strip():
+                return True
+        return False
 
     def fill_entry_fields(self, data: dict) -> None:
         self.entry_title.setText(data["Title"])

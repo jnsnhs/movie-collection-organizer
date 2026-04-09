@@ -200,7 +200,6 @@ class MainWindow(QMainWindow):
         msg.setText("Some information about this little application...")
         msg.setStandardButtons(QMessageBox.Ok)  # type: ignore
         msg.setIcon(QMessageBox.Information)  # type: ignore
-        # msg.accepted.connect(lambda: print("Click OK in About Dialog."))
         msg.exec()
 
     def on_click_new(self):
