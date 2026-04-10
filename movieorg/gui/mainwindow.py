@@ -189,7 +189,7 @@ class MainWindow(QMainWindow):
         self.add_window.show()
 
     def on_click_statistics(self) -> None:
-        self.stats_window = StatisticsWindow()
+        self.stats_window = StatisticsWindow(self.current_database)
         self.stats_window.show()
 
     def on_click_about(self) -> None:
