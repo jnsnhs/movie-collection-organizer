@@ -99,6 +99,7 @@ class AddWindow(QDialog):
         }
         self.main_window.current_database.append(new_movie)
         self.main_window.update_table_to_match_db()
+        self.main_window.update_availability_of_menu_items()
 
     def is_title_in_database(self) -> bool:
         current_db = self.main_window.current_database

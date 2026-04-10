@@ -13,6 +13,7 @@ from PySide6.QtGui import QIcon, QAction
 from PySide6.QtWidgets import QLineEdit
 
 from .addmovie import AddWindow
+from .statistics import StatisticsWindow
 from ..defaults import MOVIE_ATTRIBUTES
 
 
@@ -29,6 +30,7 @@ class MainWindow(QMainWindow):
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu("File")
         edit_menu = menu_bar.addMenu("Edit")
+        view_menu = menu_bar.addMenu("View")
         help_menu = menu_bar.addMenu("Help")
 
         # new menu item
@@ -65,6 +67,10 @@ class MainWindow(QMainWindow):
         about_action.setShortcut("Ctrl+A")
         edit_menu.addAction(about_action)
 
+        self.stats_action = QAction('&Statistics...', self)
+        self.stats_action.triggered.connect(lambda: self.on_click_statistics())
+        view_menu.addAction(self.stats_action)
+
         # about menu item
         add_action = QAction(text='About', parent=self)
         add_action.triggered.connect(lambda: self.on_click_about())
@@ -72,6 +78,8 @@ class MainWindow(QMainWindow):
 
         self.initialize_table()
         self.reset_database()
+        self.update_table_to_match_db()
+        self.update_availability_of_menu_items()
 
         self.search_field = QLineEdit()
         self.search_field.setPlaceholderText("Search...")
@@ -96,6 +104,12 @@ class MainWindow(QMainWindow):
         # self.table.setColumnWidth(1, 45)
         # self.table.horizontalHeader().resizeSection(1, 15)
         self.table.horizontalHeader().setSectionsMovable(True)
+
+    def update_availability_of_menu_items(self):
+        if len(self.current_database) == 0:
+            self.stats_action.setEnabled(False)
+        else:
+            self.stats_action.setEnabled(True)
 
     def on_click_save(self) -> None:
         if self.path_of_current_db:
@@ -161,6 +175,7 @@ class MainWindow(QMainWindow):
                 self.current_database = data
                 self.last_save_of_current_db = deepcopy(self.current_database)
                 self.update_table_to_match_db()
+                self.update_availability_of_menu_items()
             else:
                 print("Invalid JSON file. Unable to load database.")
 
@@ -172,6 +187,10 @@ class MainWindow(QMainWindow):
     def on_click_add_movie(self) -> None:
         self.add_window = AddWindow(self)
         self.add_window.show()
+
+    def on_click_statistics(self) -> None:
+        self.stats_window = StatisticsWindow()
+        self.stats_window.show()
 
     def on_click_about(self) -> None:
         msg = QMessageBox()
@@ -206,6 +225,7 @@ class MainWindow(QMainWindow):
         self.current_database: list = []
         self.last_save_of_current_db: list = []
         self.path_of_current_db: str = ""
+        self.update_availability_of_menu_items()
 
     def add_new_bottom_row(self, new_movie_data: dict) -> None:
         row_index = self.table.rowCount()
@@ -219,7 +239,9 @@ class MainWindow(QMainWindow):
                 self,
                 "Save Changes?",
                 "File has been modified, save changes?",
-                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel  # type: ignore
+                QMessageBox.Yes |  # type: ignore
+                QMessageBox.No |  # type: ignore
+                QMessageBox.Cancel  # type: ignore
             )
             if confirmation == QMessageBox.Yes:  # type: ignore
                 event.ignore()
