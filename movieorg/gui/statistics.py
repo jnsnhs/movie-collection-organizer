@@ -23,7 +23,7 @@ class StatisticsWindow(QWidget):
         self.tabs = QTabWidget(self)
         self.initialize_runtimes_plot()
         # self.initialize_directors_plot()
-        self.initialize_genres_plot()
+        self.initialize_genres_plot(5)
         self.initialize_decades_plot()
         layout = QVBoxLayout()
         layout.addWidget(self.tabs)
@@ -71,6 +71,7 @@ class StatisticsWindow(QWidget):
         self.tabs.addTab(genres_plot, "Genres")
 
     def initialize_directors_plot(self):
+        # TODO: format and optimize the chart's layout
         directors_plot = QWidget(self)
         raw_data = []
         for movie in self.data:
@@ -91,7 +92,6 @@ class StatisticsWindow(QWidget):
         self.tabs.addTab(directors_plot, "Directors")
 
     def initialize_decades_plot(self):
-        # TODO: format and optimize the chart's layout
         decades_plot = QWidget(self)
         release_years = [int(movie["year"]) for movie in self.data]
         decades = list({int(movie["year"]) // 10 * 10 for movie in self.data})
@@ -104,7 +104,8 @@ class StatisticsWindow(QWidget):
                     decades_frequencies[decades.index(decade)] += 1
                     break
         sc = MplCanvas(self, width=5, height=4, dpi=100)
-        sc.axes.bar(array(decades_labels), array(decades_frequencies))
+        decades_labels_short = [label[2:] for label in decades_labels]
+        sc.axes.bar(array(decades_labels_short), array(decades_frequencies))
         sc.axes.set_title("Movies by Decade")
         self.add_plot_to_widget(sc, decades_plot)
         self.tabs.addTab(decades_plot, "Decades")
