@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QTableWidget,
     QTableWidgetItem,
+    QLabel,
     QVBoxLayout,
     QFileDialog,
     QMessageBox
@@ -21,11 +22,16 @@ class MainWindow(QMainWindow):
 
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("Movie Collection Organizer")
-        # self.setWindowIcon(QIcon('./assets/editor.png'))
+        # TODO: self.setWindowIcon(QIcon('./icon.png'))
+        self.APP_TITLE = "Movie Collection Organizer"
+        self.setWindowTitle(f"Untitled - {self.APP_TITLE}")
         # self.setGeometry()
         self.setMinimumWidth(640)
         self.setMinimumHeight(480)
+
+        self.status_bar = self.statusBar()
+        self.database_summary = QLabel()
+        self.status_bar.addPermanentWidget(self.database_summary)
 
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu("File")
@@ -116,6 +122,10 @@ class MainWindow(QMainWindow):
             with open(self.path_of_current_db, "wt") as file:
                 json.dump(self.current_database, file, indent=4)
             self.last_save_of_current_db = deepcopy(self.current_database)
+            self.status_bar.showMessage(
+                "Database has been saved.", timeout=2000)
+            self.setWindowTitle(
+                f"{self.path_of_current_db} - {self.APP_TITLE}")
         else:
             self.on_click_save_as()
 
@@ -174,6 +184,8 @@ class MainWindow(QMainWindow):
                 self.path_of_current_db = filename
                 self.current_database = data
                 self.last_save_of_current_db = deepcopy(self.current_database)
+                self.setWindowTitle(
+                    f"{self.path_of_current_db} - {self.APP_TITLE}")
                 self.update_table_to_match_db()
                 self.update_availability_of_menu_items()
             else:
@@ -183,6 +195,20 @@ class MainWindow(QMainWindow):
         self.table.setRowCount(0)
         for movie_dict in self.current_database:
             self.add_new_bottom_row(movie_dict)
+        self.update_status_bar_msg()
+
+    def update_status_bar_msg(self):
+        total_runtime_min = 0
+        for movie_dict in self.current_database:
+            total_runtime_min += int(movie_dict["runtime"].strip(" min"))
+        total_runtime_hours = total_runtime_min / 60
+        if (movies_count := len(self.current_database)) == 0:
+            msg = "Current database is empty."
+        elif movies_count == 1:
+            msg = f"{movies_count} movies, {total_runtime_hours:.1f} hours."
+        else:
+            msg = f"{movies_count} movies, {total_runtime_hours:.1f} hours."
+        self.database_summary.setText(msg)
 
     def on_click_add_movie(self) -> None:
         self.add_window = AddWindow(self)
@@ -226,6 +252,9 @@ class MainWindow(QMainWindow):
         self.last_save_of_current_db: list = []
         self.path_of_current_db: str = ""
         self.update_availability_of_menu_items()
+        self.update_status_bar_msg()
+        self.setWindowTitle(
+            f"Untitled - {self.APP_TITLE}")
 
     def add_new_bottom_row(self, new_movie_data: dict) -> None:
         row_index = self.table.rowCount()
