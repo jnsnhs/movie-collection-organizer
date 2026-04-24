@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QLineEdit,
-    QTextEdit,
     QPushButton,
+    QSpinBox,
     QFormLayout,
     QDialog,
     QDialogButtonBox,
@@ -15,6 +15,7 @@ class AddWindow(QDialog):
     def __init__(self, main_window) -> None:
         super().__init__()
         self.setWindowTitle("Add Movie")
+        self.setMinimumWidth(320)
         self.main_window = main_window
 
         self.button_search = QPushButton("Search title in OMDB...")
@@ -25,13 +26,11 @@ class AddWindow(QDialog):
         self.entry_director = QLineEdit()
         self.entry_writer = QLineEdit()
         self.entry_actors = QLineEdit()
-        self.entry_year = QLineEdit()
-        self.entry_release = QLineEdit()
-        self.entry_runtime = QLineEdit()
+        self.entry_year = QLineEdit(maxLength=4)
+        self.entry_runtime = QLineEdit(maxLength=3)
         self.entry_language = QLineEdit()
-        self.entry_country = QLineEdit()
         self.entry_genre = QLineEdit()
-        self.entry_plot = QTextEdit()
+        self.entry_rating = QSpinBox(minimum=0, maximum=5)
 
         QBtns = QDialogButtonBox.Ok | QDialogButtonBox.Cancel  # type: ignore
         self.buttonBox = QDialogButtonBox(QBtns)
@@ -45,12 +44,10 @@ class AddWindow(QDialog):
         layout.addRow("Writer:", self.entry_writer)
         layout.addRow("Actors:", self.entry_actors)
         layout.addRow("Year:", self.entry_year)
-        layout.addRow("Release:", self.entry_release)
         layout.addRow("Runtime:", self.entry_runtime)
         layout.addRow("Language:", self.entry_language)
-        layout.addRow("Country:", self.entry_country)
         layout.addRow("Genre:", self.entry_genre)
-        layout.addRow("Plot:", self.entry_plot)
+        layout.addRow("Rating:", self.entry_rating)
         layout.addWidget(self.buttonBox)
         self.setLayout(layout)
         self.entry_title.setFocus()
@@ -62,7 +59,8 @@ class AddWindow(QDialog):
         if self.entry_title.text().strip() == "":
             no_title_msg = QMessageBox()
             no_title_msg.setWindowTitle("Unable to add new entry")
-            no_title_msg.setText("Please enter a title to add a movie.")
+            no_title_msg.setText("Please enter a movie title to "
+                                 "add a new entry.")
             no_title_msg.setStandardButtons(QMessageBox.Ok)  # type: ignore
             no_title_msg.setIcon(QMessageBox.Critical)  # type: ignore
             no_title_msg.exec()
@@ -71,8 +69,8 @@ class AddWindow(QDialog):
             msg.setWindowTitle("Title already in database")
             msg.setText(
                 f"A movie with the title '{self.entry_title.text()}' "
-                "is already part of your database.\nDo you really want to "
-                "add another movie of the same title?")
+                "is already part of your database.\n\nDo you really want to "
+                "add another entry with the same movie title?")
             msg.setStandardButtons(
                 QMessageBox.Yes | QMessageBox.No)  # type: ignore
             msg.setIcon(QMessageBox.Question)  # type: ignore
@@ -91,11 +89,10 @@ class AddWindow(QDialog):
             "writer": self.entry_writer.text(),
             "actors": self.entry_actors.text(),
             "year": self.entry_year.text(),
-            "release": self.entry_release.text(),
             "runtime": self.entry_runtime.text(),
             "language": self.entry_language.text(),
-            "country": self.entry_country.text(),
-            "genre": self.entry_genre.text()
+            "genre": self.entry_genre.text(),
+            "rating": self.entry_rating.text()
         }
         self.main_window.current_database.append(new_movie)
         self.main_window.update_table_to_match_db()
@@ -111,15 +108,12 @@ class AddWindow(QDialog):
     def fill_entry_fields(self, data: dict) -> None:
         self.entry_title.setText(data["Title"])
         self.entry_year.setText(data["Year"])
-        self.entry_release.setText(data["Released"])
-        self.entry_runtime.setText(data["Runtime"])
+        self.entry_runtime.setText(data["Runtime"].strip(" min"))
         self.entry_genre.setText(data["Genre"])
         self.entry_director.setText(data["Director"])
         self.entry_writer.setText(data["Writer"])
         self.entry_actors.setText(data["Actors"])
-        self.entry_plot.setText(data["Plot"])
-        self.entry_language.setText(data["Language"])
-        self.entry_country.setText(data["Country"])
+        self.entry_language.setText(data["Language"].split(", ")[0])
 
     def on_click_button_cancel(self) -> None:
         self.close()

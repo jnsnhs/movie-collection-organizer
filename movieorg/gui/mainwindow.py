@@ -3,6 +3,7 @@ from copy import deepcopy
 from PySide6.QtWidgets import (
     QWidget,
     QMainWindow,
+    QLineEdit,
     QTableWidget,
     QTableWidgetItem,
     QLabel,
@@ -11,29 +12,61 @@ from PySide6.QtWidgets import (
     QMessageBox
 )
 from PySide6.QtGui import QIcon, QAction
-from PySide6.QtWidgets import QLineEdit
 
 from .addmovie import AddWindow
 from .statistics import StatisticsWindow
-from ..defaults import MOVIE_ATTRIBUTES
+
+
+MOVIE_ATTRIBUTES = (
+    "title",
+    "director",
+    "writer",
+    "actors",
+    "year",
+    "runtime",
+    "language",
+    "genre",
+    "rating"
+    )
 
 
 class MainWindow(QMainWindow):
 
     def __init__(self) -> None:
         super().__init__()
-        # TODO: self.setWindowIcon(QIcon('./icon.png'))
         self.APP_TITLE = "Movie Collection Organizer"
         self.setWindowTitle(f"Untitled - {self.APP_TITLE}")
-        # self.setGeometry()
-        self.setMinimumWidth(640)
-        self.setMinimumHeight(480)
+        self.setMinimumWidth(800)
+        self.setMinimumHeight(600)
 
         self.status_bar = self.statusBar()
         self.database_summary = QLabel()
         self.status_bar.addPermanentWidget(self.database_summary)
 
         menu_bar = self.menuBar()
+        self.initialize_submenus(menu_bar)
+        self.table = self.initialize_table()
+        self.reset_database()
+        self.update_table_to_match_db()
+        self.update_availability_of_menu_items()
+
+        self.search_field = self.initialize_search_field()
+
+        container = QWidget()
+        layout = QVBoxLayout()
+        layout.addWidget(self.search_field)
+        layout.addWidget(self.table)
+        container.setLayout(layout)
+
+        self.setCentralWidget(container)
+
+    def initialize_search_field(self) -> QLineEdit:
+        search_field = QLineEdit()
+        search_field.setPlaceholderText("Search...")
+        search_field.textChanged.connect(self.filter_table_simplified)
+        return search_field
+
+    def initialize_submenus(self, menu_bar) -> None:
         file_menu = menu_bar.addMenu("File")
         edit_menu = menu_bar.addMenu("Edit")
         view_menu = menu_bar.addMenu("View")
@@ -68,11 +101,18 @@ class MainWindow(QMainWindow):
         file_menu.addAction(save_as_action)
 
         # add menu item
-        about_action = QAction('&Add Movie...', self)
+        about_action = QAction('&Insert Movie...', self)
         about_action.triggered.connect(lambda: self.on_click_add_movie())
-        about_action.setShortcut("Ctrl+A")
+        about_action.setShortcut("Ctrl+I")
         edit_menu.addAction(about_action)
 
+        # remove item
+        remove_action = QAction("Delete Movie...", self)
+        remove_action.triggered.connect(lambda: self.on_click_remove_movie())
+        remove_action.setShortcut("Ctrl+D")
+        edit_menu.addAction(remove_action)
+
+        # statistics item
         self.stats_action = QAction('&Statistics...', self)
         self.stats_action.triggered.connect(lambda: self.on_click_statistics())
         view_menu.addAction(self.stats_action)
@@ -82,34 +122,26 @@ class MainWindow(QMainWindow):
         add_action.triggered.connect(lambda: self.on_click_about())
         help_menu.addAction(add_action)
 
-        self.initialize_table()
-        self.reset_database()
-        self.update_table_to_match_db()
-        self.update_availability_of_menu_items()
-
-        self.search_field = QLineEdit()
-        self.search_field.setPlaceholderText("Search...")
-        self.search_field.textChanged.connect(self.filter_table)
-
-        container = QWidget()
-        layout = QVBoxLayout()
-        layout.addWidget(self.search_field)
-        layout.addWidget(self.table)
-        container.setLayout(layout)
-
-        self.setCentralWidget(container)
-
-    def initialize_table(self) -> None:
-        self.table = QTableWidget()
-        self.table.horizontalHeader().setStretchLastSection(False)
-        self.table.verticalHeader().setVisible(False)
-        self.table.setShowGrid(True)
-        self.table.setSortingEnabled(False)
-        self.table.setColumnCount(len(MOVIE_ATTRIBUTES))
-        self.table.setHorizontalHeaderLabels(MOVIE_ATTRIBUTES)
+    def initialize_table(self) -> QTableWidget:
+        table = QTableWidget()
+        table.horizontalHeader().setStretchLastSection(False)
+        table.verticalHeader().setVisible(False)
+        table.setShowGrid(True)
+        table.setSortingEnabled(False)
+        table.setColumnCount(len(MOVIE_ATTRIBUTES))
+        table.setHorizontalHeaderLabels(
+            [label.title() for label in MOVIE_ATTRIBUTES]
+        )
         # self.table.setColumnWidth(1, 45)
         # self.table.horizontalHeader().resizeSection(1, 15)
-        self.table.horizontalHeader().setSectionsMovable(True)
+        table.horizontalHeader().setSectionsMovable(True)
+        table.setSelectionBehavior(
+            QTableWidget.SelectionBehavior.SelectRows)
+        table.cellDoubleClicked.connect(lambda: self.on_doubleclick_cell())
+        return table
+
+    def on_doubleclick_cell(self):
+        print("double clicked!")
 
     def update_availability_of_menu_items(self):
         if len(self.current_database) == 0:
@@ -198,21 +230,26 @@ class MainWindow(QMainWindow):
         self.update_status_bar_msg()
 
     def update_status_bar_msg(self):
-        total_runtime_min = 0
-        for movie_dict in self.current_database:
-            total_runtime_min += int(movie_dict["runtime"].strip(" min"))
-        total_runtime_hours = total_runtime_min / 60
         if (movies_count := len(self.current_database)) == 0:
             msg = "Current database is empty."
         elif movies_count == 1:
-            msg = f"{movies_count} movies, {total_runtime_hours:.1f} hours."
+            msg = f"{movies_count} movies in database."
         else:
-            msg = f"{movies_count} movies, {total_runtime_hours:.1f} hours."
+            msg = f"{movies_count} movies in database."
         self.database_summary.setText(msg)
 
     def on_click_add_movie(self) -> None:
         self.add_window = AddWindow(self)
         self.add_window.show()
+
+    def on_click_remove_movie(self) -> None:
+        indexes = self.table.selectionModel().selectedRows()
+        print(f"{len(indexes)} row(s) selected")
+        indexes.reverse()
+        for index in indexes:
+            del self.current_database[index.row()]
+        self.update_table_to_match_db()
+        self.update_availability_of_menu_items()
 
     def on_click_statistics(self) -> None:
         self.stats_window = StatisticsWindow(self.current_database)
@@ -282,12 +319,19 @@ class MainWindow(QMainWindow):
         else:
             event.accept()
 
-    def filter_table(self, text) -> None:
+    def filter_table_simplified(self, raw_input: str) -> None:
+        search_terms = [i for i in raw_input.split(" ") if i]
         for row in range(self.table.rowCount()):
-            should_show = False
-            for col in range(self.table.columnCount()):
-                item = self.table.item(row, col)
-                if item and text.lower() in item.text().lower():
-                    should_show = True
+            all_terms_found = True
+            for term in search_terms:
+                term_found = False 
+                for col in range(self.table.columnCount()):
+                    item = self.table.item(row, col)
+                    if item and term.casefold() in item.text().casefold():
+                        term_found = True
+                        break
+                if not term_found:
+                    all_terms_found = False
                     break
-            self.table.setRowHidden(row, not should_show)
+
+            self.table.setRowHidden(row, not all_terms_found)

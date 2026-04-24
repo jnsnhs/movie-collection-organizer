@@ -34,9 +34,7 @@ class GetApiDataWindow(QDialog):
 
     def __init__(self, parent_window) -> None:
         super().__init__()
-
         self.parent_window = parent_window
-
         self.setWindowTitle("Get data from API")
 
         self.last_search_term = None
@@ -50,15 +48,15 @@ class GetApiDataWindow(QDialog):
             lambda: self.on_click_button_api_request())
         self.label_api_results = QLabel("API Results")
         self.list_apidata = QListWidget()
-        self.list_apidata.itemSelectionChanged.connect
-        (lambda: self.on_selection_change())
+        self.list_apidata.itemSelectionChanged.connect(
+            lambda: self.on_selection_change())
         self.button_load_more = QPushButton("Load more results")
         self.button_load_more.clicked.connect(
             lambda: self.on_click_button_load_more())
         self.label_selected_movie = QLabel()
         self.button_apply = QPushButton("Apply")
         self.button_apply.clicked.connect(
-            lambda: self.on_push_apply_button())
+            lambda: self.on_click_button_apply())
         self.button_cancel = QPushButton("Cancel")
         self.button_cancel.clicked.connect(lambda: self.close())
 
@@ -74,7 +72,6 @@ class GetApiDataWindow(QDialog):
         layout.addWidget(self.button_cancel)
 
         self.setLayout(layout)
-
         self.show()
 
     def add_item_to_list(self, content):
@@ -90,7 +87,7 @@ class GetApiDataWindow(QDialog):
         else:
             print("no valid input")
 
-    def on_push_apply_button(self):
+    def on_click_button_apply(self):
         self.get_movie_details(self.get_selected_movie_imdbId())
 
     def on_click_button_load_more(self):
