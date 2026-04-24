@@ -1,4 +1,5 @@
 import json
+from configparser import ConfigParser
 from copy import deepcopy
 from PySide6.QtWidgets import (
     QWidget,
@@ -13,8 +14,10 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QIcon, QAction
 
-from .addmovie import AddWindow
-from .statistics import StatisticsWindow
+from ..defaults import CONFIG_FILE_NAME
+from ..gui.addmovie import AddWindow
+from ..gui.settings import SettingsWindow
+from ..gui.statistics import StatisticsWindow
 
 
 MOVIE_ATTRIBUTES = (
@@ -34,10 +37,12 @@ class MainWindow(QMainWindow):
 
     def __init__(self) -> None:
         super().__init__()
-        self.APP_TITLE = "Movie Collection Organizer"
-        self.setWindowTitle(f"Untitled - {self.APP_TITLE}")
+        self.app_title = "Movie Collection Organizer"
+        self.setWindowTitle(f"Untitled - {self.app_title}")
         self.setMinimumWidth(800)
-        self.setMinimumHeight(600)
+        self.setMinimumHeight(480)
+
+        self.api_key, self.db_path = self.load_config_data(CONFIG_FILE_NAME)
 
         self.status_bar = self.statusBar()
         self.database_summary = QLabel()
@@ -57,13 +62,18 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.search_field)
         layout.addWidget(self.table)
         container.setLayout(layout)
-
         self.setCentralWidget(container)
+
+        if self.db_path:
+            try:
+                self.import_db_from_json_file(self.db_path)
+            except Exception:
+                print("Unable to import default database.")
 
     def initialize_search_field(self) -> QLineEdit:
         search_field = QLineEdit()
         search_field.setPlaceholderText("Search...")
-        search_field.textChanged.connect(self.filter_table_simplified)
+        search_field.textChanged.connect(lambda x: self.filter_table_simple(x))
         return search_field
 
     def initialize_submenus(self, menu_bar) -> None:
@@ -99,6 +109,19 @@ class MainWindow(QMainWindow):
         save_as_action.triggered.connect(lambda: self.on_click_save_as())
         save_as_action.setShortcut('Ctrl+Shift+S')
         file_menu.addAction(save_as_action)
+
+        file_menu.addSeparator()
+
+        # settings menu item
+        settings_action = QAction("Settings...", self)
+        settings_action.triggered.connect(lambda: self.on_click_settings())
+        file_menu.addAction(settings_action)
+        
+        file_menu.addSeparator()
+        
+        exit_action = QAction("Exit", self)
+        exit_action.triggered.connect(lambda: self.on_click_exit())
+        file_menu.addAction(exit_action)
 
         # add menu item
         about_action = QAction('&Insert Movie...', self)
@@ -143,6 +166,11 @@ class MainWindow(QMainWindow):
     def on_doubleclick_cell(self):
         print("double clicked!")
 
+    def on_click_settings(self) -> None:
+        settings_window = SettingsWindow(self)
+        settings_window.exec()
+        self.api_key, self.db_path = self.load_config_data(CONFIG_FILE_NAME)
+
     def update_availability_of_menu_items(self):
         if len(self.current_database) == 0:
             self.stats_action.setEnabled(False)
@@ -157,7 +185,7 @@ class MainWindow(QMainWindow):
             self.status_bar.showMessage(
                 "Database has been saved.", timeout=2000)
             self.setWindowTitle(
-                f"{self.path_of_current_db} - {self.APP_TITLE}")
+                f"{self.path_of_current_db} - {self.app_title}")
         else:
             self.on_click_save_as()
 
@@ -209,19 +237,23 @@ class MainWindow(QMainWindow):
             filter="JSON Files (*.json)"
         )
         if filename:
-            data = []
-            with open(filename, "rt") as file_content:
-                data = json.load(file_content)
-            if self.is_json_file_valid():
-                self.path_of_current_db = filename
-                self.current_database = data
-                self.last_save_of_current_db = deepcopy(self.current_database)
-                self.setWindowTitle(
-                    f"{self.path_of_current_db} - {self.APP_TITLE}")
-                self.update_table_to_match_db()
-                self.update_availability_of_menu_items()
-            else:
-                print("Invalid JSON file. Unable to load database.")
+            self.import_db_from_json_file(filename)
+
+    def import_db_from_json_file(self, filename: str) -> None:
+        data = []
+        with open(filename, "rt") as file_content:
+            data = json.load(file_content)
+        if self.is_json_file_valid():
+            self.path_of_current_db = filename
+            self.current_database = data
+            self.last_save_of_current_db = deepcopy(self.current_database)
+            self.setWindowTitle(
+                f"{self.path_of_current_db} - {self.app_title}")
+            self.update_table_to_match_db()
+            self.update_availability_of_menu_items()
+        else:
+            print(f"{filename} is not a valid json file. "
+                  "Unable to load database.")
 
     def update_table_to_match_db(self):
         self.table.setRowCount(0)
@@ -291,7 +323,7 @@ class MainWindow(QMainWindow):
         self.update_availability_of_menu_items()
         self.update_status_bar_msg()
         self.setWindowTitle(
-            f"Untitled - {self.APP_TITLE}")
+            f"Untitled - {self.app_title}")
 
     def add_new_bottom_row(self, new_movie_data: dict) -> None:
         row_index = self.table.rowCount()
@@ -319,12 +351,12 @@ class MainWindow(QMainWindow):
         else:
             event.accept()
 
-    def filter_table_simplified(self, raw_input: str) -> None:
+    def filter_table_simple(self, raw_input: str) -> None:
         search_terms = [i for i in raw_input.split(" ") if i]
         for row in range(self.table.rowCount()):
             all_terms_found = True
             for term in search_terms:
-                term_found = False 
+                term_found = False
                 for col in range(self.table.columnCount()):
                     item = self.table.item(row, col)
                     if item and term.casefold() in item.text().casefold():
@@ -335,3 +367,55 @@ class MainWindow(QMainWindow):
                     break
 
             self.table.setRowHidden(row, not all_terms_found)
+
+# year, runtime, rating
+
+    def filter_table_advanced(self, raw_input: str) -> None:
+        search_terms = [i for i in raw_input.split(" ") if i]
+        for row in range(self.table.rowCount()):
+            all_conditions_met = True
+            for term in search_terms:
+                filter_positive = False
+                if set(term).intersection({"=", "<", ">"}):
+                    row_meets_condition = self.meets_filter_condition(
+                        row, term
+                    )
+                    filter_positive = row_meets_condition
+                if not filter_positive:
+                    all_conditions_met = False
+                    break
+            self.table.setRowHidden(row, not all_conditions_met)
+
+    def meets_filter_condition(self, row: int, condition: str) -> bool:
+        count_operators = sum([condition.count(i) for i in ("<", ">", "=")])
+        if count_operators > 1:
+            print("term invalid")
+            return False
+        for o in ("<", ">", "="):
+            if len(res := [i for i in input.partition(o) if i]) == 3:
+                left_side = res[0]
+                operator = res[1]
+                right_side = res[2]
+        return False
+
+        # for col in range(self.table.columnCount()):
+        #     item = self.table.item(row, col)
+        #     if item and term.casefold() in item.text().casefold():
+        #         term_found = True
+        #         break
+
+    def load_config_data(self, file_name: str) -> tuple[str, str]:
+        config = ConfigParser()
+        try:
+            config.read(file_name)
+        except Exception:
+            api_key, db_path = ("", "")
+        else:
+            api_key = config.get("API", "key")
+            db_path = config.get("Database", "default_db")
+        finally:
+            return (api_key, db_path)
+
+    def on_click_exit(self):
+        print("Exit Application")
+        self.close()

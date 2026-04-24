@@ -1,6 +1,3 @@
-import os
-import requests
-
 from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
@@ -10,32 +7,18 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QDialog
 )
+import requests
 
-from ..defaults import PACKAGE_DIR
-
-BASE_URL = "http://www.omdbapi.com/?apikey="
-
-
-def get_apikey():
-    apikey = ""
-    try:
-        with open(os.path.join(PACKAGE_DIR, "apikey.txt"), "rt") as file:
-            apikey = file.read()
-    except Exception:
-        print("Unable to get api key.")
-    finally:
-        return apikey
-
-
-APIKEY = get_apikey()
+from ..defaults import BASE_URL
 
 
 class GetApiDataWindow(QDialog):
 
-    def __init__(self, parent_window) -> None:
+    def __init__(self, parent, apikey: str) -> None:
         super().__init__()
-        self.parent_window = parent_window
+        self.parent_window = parent
         self.setWindowTitle("Get data from API")
+        self.API_KEY = apikey
 
         self.last_search_term = None
         self.last_search_list_of_results = list()
@@ -102,8 +85,8 @@ class GetApiDataWindow(QDialog):
 
     def append_more_results(self):
         page = len(self.last_search_list_of_results) / 10 + 1
-        request = f"{BASE_URL}{APIKEY}&s='{self.last_search_term}'"
-        f"&type=movie&page={page}"
+        request = f"{BASE_URL}{self.API_KEY}&s='{self.last_search_term}'" \
+                  f"&type=movie&page={page}"
         response = requests.get(request)
         if response.status_code == 200:
             api_data = response.json()
@@ -113,7 +96,8 @@ class GetApiDataWindow(QDialog):
 
     def get_api_data(self, title="", page=1):
         if title:
-            request = f"{BASE_URL}{APIKEY}&s='{title}'&type=movie&page={page}"
+            request = f"{BASE_URL}{self.API_KEY}&" \
+                      f"s='{title}'&type=movie&page={page}"
             response = requests.get(request)
         else:
             print("No input to search for.")
@@ -146,7 +130,7 @@ class GetApiDataWindow(QDialog):
         return imdbId
 
     def get_movie_details(self, imdbId: str):
-        request = f"{BASE_URL}{APIKEY}&i={imdbId}"
+        request = f"{BASE_URL}{self.API_KEY}&i={imdbId}"
         response = requests.get(request)
         if response.status_code == 200:
             api_data = response.json()

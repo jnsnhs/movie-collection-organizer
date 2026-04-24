@@ -7,16 +7,19 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QMessageBox
 )
+import requests
 from .apirequest import GetApiDataWindow
+
+BASE_URL = "http://www.omdbapi.com/?apikey="
 
 
 class AddWindow(QDialog):
 
-    def __init__(self, main_window) -> None:
+    def __init__(self, parent) -> None:
         super().__init__()
         self.setWindowTitle("Add Movie")
         self.setMinimumWidth(320)
-        self.main_window = main_window
+        self.main_window = parent
 
         self.button_search = QPushButton("Search title in OMDB...")
         self.button_search.clicked.connect(
@@ -53,7 +56,16 @@ class AddWindow(QDialog):
         self.entry_title.setFocus()
 
     def on_click_button_search(self) -> None:
-        self.window_api_search = GetApiDataWindow(self)
+        api_key = self.main_window.api_key
+        if self.is_apikey_valid(api_key):
+            self.window_api_search = GetApiDataWindow(self, api_key)
+        else:
+            print(f"{api_key} is not a valid api key!")
+
+    def is_apikey_valid(self, api_key: str) -> bool:
+        request = f"{BASE_URL}{api_key}&i=tt0033467"
+        response = requests.get(request)
+        return True if response.status_code == 200 else False
 
     def on_click_button_add(self):
         if self.entry_title.text().strip() == "":

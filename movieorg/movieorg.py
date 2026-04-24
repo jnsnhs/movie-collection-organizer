@@ -4,7 +4,8 @@ from .gui.mainwindow import MainWindow
 
 
 class Application(QApplication):
+
     def __init__(self) -> None:
         super().__init__()
-        self.window = MainWindow()
-        self.window.show()
+        self.main_window = MainWindow()
+        self.main_window.show()
