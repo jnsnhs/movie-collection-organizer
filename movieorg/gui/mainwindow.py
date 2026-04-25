@@ -130,7 +130,7 @@ class MainWindow(QMainWindow):
         edit_menu.addAction(about_action)
 
         # remove item
-        remove_action = QAction("Delete Movie...", self)
+        remove_action = QAction("Delete Movie", self)
         remove_action.triggered.connect(lambda: self.on_click_remove_movie())
         remove_action.setShortcut("Ctrl+D")
         edit_menu.addAction(remove_action)
