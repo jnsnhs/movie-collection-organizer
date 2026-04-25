@@ -73,7 +73,7 @@ class MainWindow(QMainWindow):
     def initialize_search_field(self) -> QLineEdit:
         search_field = QLineEdit()
         search_field.setPlaceholderText("Search...")
-        search_field.textChanged.connect(lambda x: self.filter_table_simple(x))
+        search_field.textChanged.connect(lambda x: self.filter_table(x))
         return search_field
 
     def initialize_submenus(self, menu_bar) -> None:
@@ -351,11 +351,13 @@ class MainWindow(QMainWindow):
         else:
             event.accept()
 
-    def filter_table_simple(self, raw_input: str) -> None:
+    def filter_table(self, raw_input: str) -> None:
         search_terms = [i for i in raw_input.split(" ") if i]
+        positive_terms = [i for i in search_terms if i[0] != "-"]
+        negative_terms = [i[1:] for i in search_terms if i[0] == "-"]
         for row in range(self.table.rowCount()):
-            all_terms_found = True
-            for term in search_terms:
+            positive_terms_found = True
+            for term in positive_terms:
                 term_found = False
                 for col in range(self.table.columnCount()):
                     item = self.table.item(row, col)
@@ -363,46 +365,23 @@ class MainWindow(QMainWindow):
                         term_found = True
                         break
                 if not term_found:
-                    all_terms_found = False
+                    positive_terms_found = False
                     break
-
-            self.table.setRowHidden(row, not all_terms_found)
-
-# year, runtime, rating
-
-    def filter_table_advanced(self, raw_input: str) -> None:
-        search_terms = [i for i in raw_input.split(" ") if i]
-        for row in range(self.table.rowCount()):
-            all_conditions_met = True
-            for term in search_terms:
-                filter_positive = False
-                if set(term).intersection({"=", "<", ">"}):
-                    row_meets_condition = self.meets_filter_condition(
-                        row, term
-                    )
-                    filter_positive = row_meets_condition
-                if not filter_positive:
-                    all_conditions_met = False
-                    break
-            self.table.setRowHidden(row, not all_conditions_met)
-
-    def meets_filter_condition(self, row: int, condition: str) -> bool:
-        count_operators = sum([condition.count(i) for i in ("<", ">", "=")])
-        if count_operators > 1:
-            print("term invalid")
-            return False
-        for o in ("<", ">", "="):
-            if len(res := [i for i in input.partition(o) if i]) == 3:
-                left_side = res[0]
-                operator = res[1]
-                right_side = res[2]
-        return False
-
-        # for col in range(self.table.columnCount()):
-        #     item = self.table.item(row, col)
-        #     if item and term.casefold() in item.text().casefold():
-        #         term_found = True
-        #         break
+            negative_terms_found = False
+            if positive_terms_found:
+                for term in negative_terms:
+                    term_found = False
+                    for col in range(self.table.columnCount()):
+                        item = self.table.item(row, col)
+                        if item and term.casefold() in item.text().casefold():
+                            term_found = True
+                            break
+                    if term_found:
+                        negative_terms_found = True
+                        break
+            conditions_satisfied = \
+                positive_terms_found and not negative_terms_found
+            self.table.setRowHidden(row, not conditions_satisfied)
 
     def load_config_data(self, file_name: str) -> tuple[str, str]:
         config = ConfigParser()
