@@ -1,6 +1,7 @@
 import json
 from configparser import ConfigParser
 from copy import deepcopy
+from os import path
 from PySide6.QtWidgets import (
     QWidget,
     QMainWindow,
@@ -50,6 +51,7 @@ class MainWindow(QMainWindow):
 
         menu_bar = self.menuBar()
         self.initialize_submenus(menu_bar)
+
         self.table = self.initialize_table()
         self.reset_database()
         self.update_table_to_match_db()
@@ -116,9 +118,9 @@ class MainWindow(QMainWindow):
         settings_action = QAction("Settings...", self)
         settings_action.triggered.connect(lambda: self.on_click_settings())
         file_menu.addAction(settings_action)
-        
+
         file_menu.addSeparator()
-        
+
         exit_action = QAction("Exit", self)
         exit_action.triggered.connect(lambda: self.on_click_exit())
         file_menu.addAction(exit_action)
@@ -171,7 +173,7 @@ class MainWindow(QMainWindow):
         settings_window.exec()
         self.api_key, self.db_path = self.load_config_data(CONFIG_FILE_NAME)
 
-    def update_availability_of_menu_items(self):
+    def update_availability_of_menu_items(self) -> None:
         if len(self.current_database) == 0:
             self.stats_action.setEnabled(False)
         else:
@@ -184,8 +186,8 @@ class MainWindow(QMainWindow):
             self.last_save_of_current_db = deepcopy(self.current_database)
             self.status_bar.showMessage(
                 "Database has been saved.", timeout=2000)
-            self.setWindowTitle(
-                f"{self.path_of_current_db} - {self.app_title}")
+            file = path.split(self.path_of_current_db)[1]
+            self.setWindowTitle(f"{file} - {self.app_title}")
         else:
             self.on_click_save_as()
 
@@ -247,8 +249,9 @@ class MainWindow(QMainWindow):
             self.path_of_current_db = filename
             self.current_database = data
             self.last_save_of_current_db = deepcopy(self.current_database)
+            file = path.split(self.path_of_current_db)[1]
             self.setWindowTitle(
-                f"{self.path_of_current_db} - {self.app_title}")
+                f"{file} - {self.app_title}")
             self.update_table_to_match_db()
             self.update_availability_of_menu_items()
         else:
@@ -352,11 +355,11 @@ class MainWindow(QMainWindow):
             event.accept()
 
     def filter_table(self, raw_input: str) -> None:
-        search_terms = [i for i in raw_input.split(" ") if i]
-        positive_terms = [i for i in search_terms if i[0] != "-"]
-        negative_terms = [i[1:] for i in search_terms if i[0] == "-"]
+        terms = [string for string in raw_input.split(" ") if string]
+        positive_terms = [string for string in terms if string[0] != "-"]
+        negative_terms = [string[1:] for string in terms if string[0] == "-"]
         for row in range(self.table.rowCount()):
-            positive_terms_found = True
+            all_positive_terms_found = True
             for term in positive_terms:
                 term_found = False
                 for col in range(self.table.columnCount()):
@@ -365,10 +368,10 @@ class MainWindow(QMainWindow):
                         term_found = True
                         break
                 if not term_found:
-                    positive_terms_found = False
+                    all_positive_terms_found = False
                     break
-            negative_terms_found = False
-            if positive_terms_found:
+            no_negative_terms_found = True
+            if all_positive_terms_found:
                 for term in negative_terms:
                     term_found = False
                     for col in range(self.table.columnCount()):
@@ -377,10 +380,10 @@ class MainWindow(QMainWindow):
                             term_found = True
                             break
                     if term_found:
-                        negative_terms_found = True
+                        no_negative_terms_found = False
                         break
             conditions_satisfied = \
-                positive_terms_found and not negative_terms_found
+                all_positive_terms_found and no_negative_terms_found
             self.table.setRowHidden(row, not conditions_satisfied)
 
     def load_config_data(self, file_name: str) -> tuple[str, str]:
@@ -389,6 +392,7 @@ class MainWindow(QMainWindow):
             config.read(file_name)
         except Exception:
             api_key, db_path = ("", "")
+            print("No config file found.")
         else:
             api_key = config.get("API", "key")
             db_path = config.get("Database", "default_db")
