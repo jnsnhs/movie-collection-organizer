@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import (
     QWidget,
+    QDialog,
     QTabWidget,
     QVBoxLayout
 )
@@ -18,12 +19,11 @@ class MplCanvas(Canvas):
         super().__init__(fig)
 
 
-class StatisticsWindow(QWidget):
+class StatisticsWindow(QDialog):
 
     def __init__(self, database) -> None:
-        super().__init__(
-            windowTitle=f"{APP_TITLE} - Statistics"
-        )
+        super().__init__()
+        self.setWindowTitle(f"{APP_TITLE} - Statistics")
         tabs = QTabWidget(self)
         tabs.addTab(self.create_runtimes_plot(database), "Runtimes")
         tabs.addTab(self.create_genres_plot(database), "Genres")
@@ -58,16 +58,18 @@ class StatisticsWindow(QWidget):
         for key in genre_dict.keys():
             genre_dict[key] = genres.count(key)
         threshold = number_of_movies // 10
-        if threshold:
-            highest_count = max([val for val in genre_dict.values()])
-            others = 0
-            print(threshold, highest_count)
+        highest_count = max([val for val in genre_dict.values()])
+        if threshold and highest_count >= 3 * threshold:
+            major_genres = dict()
+            minor_genres_count = 0
             for key, val in genre_dict.items():
-                if val <= threshold and highest_count >= 3 * threshold:
-                    others += val
-                    del genre_dict[key]
-        if others:
-            genre_dict["Others"] = others
+                if val > threshold:
+                    major_genres[key] = val
+                else:
+                    minor_genres_count += val
+        if minor_genres_count:
+            genre_dict = major_genres
+            genre_dict["Others"] = minor_genres_count
         genre_frequencies = array(list(genre_dict.values()))
         genre_labels = list(genre_dict.keys())
         plot = MplCanvas(self, width=5, height=4, dpi=100)
