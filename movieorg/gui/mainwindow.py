@@ -11,12 +11,14 @@ from PySide6.QtWidgets import (
     QLabel,
     QVBoxLayout,
     QFileDialog,
-    QMessageBox
+    QMessageBox,
+    QAbstractItemView
 )
 from PySide6.QtGui import QIcon, QAction
 
 from ..defaults import CONFIG_FILE_NAME
 from ..gui.addmovie import AddWindow
+from ..gui.editmovie import EditWindow
 from ..gui.settings import SettingsWindow
 from ..gui.statistics import StatisticsWindow
 
@@ -151,6 +153,8 @@ class MainWindow(QMainWindow):
         table = QTableWidget()
         table.horizontalHeader().setStretchLastSection(False)
         table.verticalHeader().setVisible(False)
+        table.setEditTriggers(
+            QAbstractItemView.EditTrigger.NoEditTriggers)
         table.setShowGrid(True)
         table.setSortingEnabled(False)
         table.setColumnCount(len(MOVIE_ATTRIBUTES))
@@ -166,7 +170,9 @@ class MainWindow(QMainWindow):
         return table
 
     def on_doubleclick_cell(self):
-        print("double clicked!")
+        selected_row_index = self.table.selectionModel().selectedRows()
+        EditWindow(self, self.current_database, selected_row_index).exec()
+        self.update_table_to_match_db()
 
     def on_click_settings(self) -> None:
         settings_window = SettingsWindow(self)
@@ -287,8 +293,7 @@ class MainWindow(QMainWindow):
         self.update_availability_of_menu_items()
 
     def on_click_statistics(self) -> None:
-        self.stats_window = StatisticsWindow(self.current_database)
-        self.stats_window.show()
+        StatisticsWindow(self.current_database).exec()
 
     def on_click_about(self) -> None:
         msg = QMessageBox()
