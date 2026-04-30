@@ -15,25 +15,13 @@ from PySide6.QtWidgets import (
     QAbstractItemView
 )
 from PySide6.QtGui import QIcon, QAction
+from PySide6.QtCore import Qt
 
-from ..defaults import CONFIG_FILE_NAME
+from ..defaults import CONFIG_FILE_NAME, MOVIE_ATTRIBUTES
 from ..gui.addmovie import AddWindow
 from ..gui.editmovie import EditWindow
 from ..gui.settings import SettingsWindow
 from ..gui.statistics import StatisticsWindow
-
-
-MOVIE_ATTRIBUTES = (
-    "title",
-    "director",
-    "writer",
-    "actors",
-    "year",
-    "runtime",
-    "language",
-    "genre",
-    "rating"
-    )
 
 
 class MainWindow(QMainWindow):
@@ -353,7 +341,8 @@ class MainWindow(QMainWindow):
     def on_click_about(self) -> None:
         msg = QMessageBox()
         msg.setWindowTitle("Movie Collection Organizer")
-        msg.setText("Some information about this little application...")
+        msg.setText("A simple way to organize your movie collection.\n"
+                    "Made by Jens Neuhaus, 2026.")
         msg.setStandardButtons(QMessageBox.Ok)  # type: ignore
         msg.setIcon(QMessageBox.Information)  # type: ignore
         msg.exec()
@@ -378,7 +367,7 @@ class MainWindow(QMainWindow):
         else:
             self.reset_database()
 
-    def reset_database(self):
+    def reset_database(self) -> None:
         self.table.setRowCount(0)
         self.current_database: list = []
         self.last_save_of_current_db: list = []
@@ -393,8 +382,12 @@ class MainWindow(QMainWindow):
         self.table.insertRow(row_index)
         for col_index, item in enumerate(new_movie_data.items()):
             self.table.setItem(row_index, col_index, QTableWidgetItem(item[1]))
+            if item[0] in ("rating", "year", "runtime", "language"):
+                self.table.item(
+                    row_index, col_index).setTextAlignment(  # type: ignore
+                        Qt.AlignmentFlag.AlignCenter)
 
-    def closeEvent(self, event):
+    def closeEvent(self, event) -> None:
         if self.are_changes_unsaved():
             confirmation = QMessageBox.question(
                 self,
