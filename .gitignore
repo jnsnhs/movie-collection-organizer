@@ -1,6 +1,6 @@
-README.MD
 *.json
 apikey.txt
 __pycache__
 sandbox/
 *.conf
+*.af
