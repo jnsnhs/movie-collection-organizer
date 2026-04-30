@@ -1,6 +1,6 @@
-import json
 from configparser import ConfigParser
 from copy import deepcopy
+import json
 from os import path
 from PySide6.QtWidgets import (
     QWidget,
@@ -46,13 +46,17 @@ class MainWindow(QMainWindow):
         self.setMinimumHeight(480)
 
         self.api_key, self.db_path = self.load_config_data(CONFIG_FILE_NAME)
+        self.name_of_file = ""
+        self.unsaved_changes = False
 
         self.status_bar = self.statusBar()
         self.database_summary = QLabel()
         self.status_bar.addPermanentWidget(self.database_summary)
 
         menu_bar = self.menuBar()
+        menu_bar.setNativeMenuBar(True)
         self.initialize_submenus(menu_bar)
+        menu_bar.hovered.connect(lambda: self.on_hover_menubar())
 
         self.table = self.initialize_table()
         self.reset_database()
@@ -71,8 +75,12 @@ class MainWindow(QMainWindow):
         if self.db_path:
             try:
                 self.import_db_from_json_file(self.db_path)
-            except Exception:
+            except Exception as exception:
                 print("Unable to import default database.")
+                print(exception)
+
+    def on_hover_menubar(self):
+        self.update_availability_of_menu_items()
 
     def initialize_search_field(self) -> QLineEdit:
         search_field = QLineEdit()
@@ -128,16 +136,20 @@ class MainWindow(QMainWindow):
         file_menu.addAction(exit_action)
 
         # add menu item
-        about_action = QAction('&Insert Movie...', self)
-        about_action.triggered.connect(lambda: self.on_click_add_movie())
-        about_action.setShortcut("Ctrl+I")
-        edit_menu.addAction(about_action)
+        add_action = QAction('&Insert Movie...', self)
+        add_action.triggered.connect(lambda: self.on_click_add_movie())
+        add_action.setShortcut("Ctrl+I")
+        edit_menu.addAction(add_action)
+
+        self.edit_action = QAction('&Edit Movie...', self)
+        self.edit_action.triggered.connect(lambda: self.on_click_edit_movie())
+        edit_menu.addAction(self.edit_action)
 
         # remove item
-        remove_action = QAction("Delete Movie", self)
-        remove_action.triggered.connect(lambda: self.on_click_remove_movie())
-        remove_action.setShortcut("Ctrl+D")
-        edit_menu.addAction(remove_action)
+        self.remove_action = QAction("Remove Movie(s)", self)
+        self.remove_action.triggered.connect(
+            lambda: self.on_click_remove_movie())
+        edit_menu.addAction(self.remove_action)
 
         # statistics item
         self.stats_action = QAction('&Statistics...', self)
@@ -145,9 +157,9 @@ class MainWindow(QMainWindow):
         view_menu.addAction(self.stats_action)
 
         # about menu item
-        add_action = QAction(text='About', parent=self)
-        add_action.triggered.connect(lambda: self.on_click_about())
-        help_menu.addAction(add_action)
+        about_action = QAction(text='About', parent=self)
+        about_action.triggered.connect(lambda: self.on_click_about())
+        help_menu.addAction(about_action)
 
     def initialize_table(self) -> QTableWidget:
         table = QTableWidget()
@@ -170,9 +182,7 @@ class MainWindow(QMainWindow):
         return table
 
     def on_doubleclick_cell(self):
-        selected_row_index = self.table.selectionModel().selectedRows()
-        EditWindow(self, self.current_database, selected_row_index).exec()
-        self.update_table_to_match_db()
+        self.open_edit_movie_dialog()
 
     def on_click_settings(self) -> None:
         settings_window = SettingsWindow(self)
@@ -180,10 +190,18 @@ class MainWindow(QMainWindow):
         self.api_key, self.db_path = self.load_config_data(CONFIG_FILE_NAME)
 
     def update_availability_of_menu_items(self) -> None:
-        if len(self.current_database) == 0:
-            self.stats_action.setEnabled(False)
-        else:
+        if self.current_database:
             self.stats_action.setEnabled(True)
+        else:
+            self.stats_action.setEnabled(False)
+        if self.table.selectionModel().selectedRows():
+            self.remove_action.setEnabled(True)
+        else:
+            self.remove_action.setEnabled(False)
+        if len(self.table.selectionModel().selectedRows()) == 1:
+            self.edit_action.setEnabled(True)
+        else:
+            self.edit_action.setEnabled(False)
 
     def on_click_save(self) -> None:
         if self.path_of_current_db:
@@ -192,8 +210,9 @@ class MainWindow(QMainWindow):
             self.last_save_of_current_db = deepcopy(self.current_database)
             self.status_bar.showMessage(
                 "Database has been saved.", timeout=2000)
-            file = path.split(self.path_of_current_db)[1]
-            self.setWindowTitle(f"{file} - {self.app_title}")
+            self.name_of_file = path.split(self.path_of_current_db)[1]
+            self.set_unsaved_changes(False)
+            self.setWindowTitle(f"{self.name_of_file} - {self.app_title}")
         else:
             self.on_click_save_as()
 
@@ -255,11 +274,11 @@ class MainWindow(QMainWindow):
             self.path_of_current_db = filename
             self.current_database = data
             self.last_save_of_current_db = deepcopy(self.current_database)
-            file = path.split(self.path_of_current_db)[1]
+            self.name_of_file = path.split(self.path_of_current_db)[1]
             self.setWindowTitle(
-                f"{file} - {self.app_title}")
+                f"{self.name_of_file} - {self.app_title}")
+            self.set_unsaved_changes(False)
             self.update_table_to_match_db()
-            self.update_availability_of_menu_items()
         else:
             print(f"{filename} is not a valid json file. "
                   "Unable to load database.")
@@ -270,18 +289,53 @@ class MainWindow(QMainWindow):
             self.add_new_bottom_row(movie_dict)
         self.update_status_bar_msg()
 
-    def update_status_bar_msg(self):
+    def update_status_bar_msg(self) -> None:
         if (movies_count := len(self.current_database)) == 0:
-            msg = "Current database is empty."
+            msg = "This database is still empty."
         elif movies_count == 1:
-            msg = f"{movies_count} movies in database."
+            msg = "There is only one movie in this database."
         else:
-            msg = f"{movies_count} movies in database."
+            msg = f"There are {movies_count} movies in this database"
+            msg = f"{msg}{self.get_runtime_string()}."
         self.database_summary.setText(msg)
+
+    def get_runtime_string(self) -> str:
+        total_runtime = 0
+        are_values_missing = False
+        for movie in self.current_database:
+            if movie["runtime"]:
+                total_runtime += int(movie["runtime"])
+            else:
+                are_values_missing = True
+        runtime_string = ""
+        if total_runtime:
+            if total_runtime >= 2 * 525_600:
+                runtime_string = f"{round(total_runtime / 525_600, 1)} years"
+            if total_runtime >= 2 * 43_920:
+                runtime_string = f"{round(total_runtime / 43_920, 1)} months"
+            elif total_runtime >= 2 * 10_080:
+                runtime_string = f"{round(total_runtime / 10_080, 1)} weeks"
+            elif total_runtime >= 2 * 1440:
+                runtime_string = f"{round(total_runtime / 1440, 1)} days"
+            else:
+                runtime_string = f"{round(total_runtime / 60, 1)} hours"
+            if are_values_missing:
+                runtime_string = "> " + runtime_string
+            runtime_string = f" with a total runtime of {runtime_string}"
+        return runtime_string
 
     def on_click_add_movie(self) -> None:
         self.add_window = AddWindow(self)
         self.add_window.show()
+
+    def on_click_edit_movie(self) -> None:
+        self.open_edit_movie_dialog()
+
+    def open_edit_movie_dialog(self) -> None:
+        selected_row_index = self.table.selectionModel().selectedRows()
+        EditWindow(self, self.current_database, selected_row_index).exec()
+        self.update_status_bar_msg()
+        self.update_table_to_match_db()
 
     def on_click_remove_movie(self) -> None:
         indexes = self.table.selectionModel().selectedRows()
@@ -289,6 +343,7 @@ class MainWindow(QMainWindow):
         indexes.reverse()
         for index in indexes:
             del self.current_database[index.row()]
+        self.set_unsaved_changes(True)
         self.update_table_to_match_db()
         self.update_availability_of_menu_items()
 
@@ -303,7 +358,7 @@ class MainWindow(QMainWindow):
         msg.setIcon(QMessageBox.Information)  # type: ignore
         msg.exec()
 
-    def on_click_new(self):
+    def on_click_new(self) -> None:
         if self.are_changes_unsaved():
             msg = QMessageBox()
             msg.setWindowTitle("Unsaved Changes")
@@ -404,6 +459,15 @@ class MainWindow(QMainWindow):
         finally:
             return (api_key, db_path)
 
-    def on_click_exit(self):
+    def set_unsaved_changes(self, state: bool) -> None:
+        self.unsaved_changes = state
+        if self.unsaved_changes:
+            self.setWindowTitle(
+                f"{self.name_of_file} [unsaved] - {self.app_title}")
+        else:
+            self.setWindowTitle(
+                f"{self.name_of_file} - {self.app_title}")
+
+    def on_click_exit(self) -> None:
         print("Exit Application")
         self.close()
