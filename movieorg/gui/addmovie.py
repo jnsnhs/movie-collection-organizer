@@ -40,7 +40,8 @@ class AddWindow(QDialog):
         self.buttonBox.rejected.connect(lambda: self.on_click_button_cancel())
 
         layout = QFormLayout()
-        layout.addRow(self.button_search)
+        if self.is_apikey_valid(self.main_window.api_key):
+            layout.addRow(self.button_search)
         layout.addRow("Title", self.entry_title)
         layout.addRow("Director:", self.entry_director)
         layout.addRow("Writer:", self.entry_writer)
@@ -56,10 +57,7 @@ class AddWindow(QDialog):
 
     def on_click_button_search(self) -> None:
         api_key = self.main_window.api_key
-        if self.is_apikey_valid(api_key):
-            self.window_api_search = GetApiDataWindow(self, api_key)
-        else:
-            print(f"{api_key} is not a valid api key!")
+        self.window_api_search = GetApiDataWindow(self, api_key)
 
     def is_apikey_valid(self, api_key: str) -> bool:
         request = f"{BASE_URL}{api_key}&i=tt0033467"
