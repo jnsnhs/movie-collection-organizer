@@ -75,6 +75,7 @@ class EditWindow(QDialog):
 
     def on_click_button_ok(self):
         self.change_database_values(self.selected_movie_index)
+        self.main_window.set_unsaved_changes(True)
         self.close()
 
     def on_click_button_cancel(self) -> None:

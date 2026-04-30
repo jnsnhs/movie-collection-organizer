@@ -9,8 +9,7 @@ from PySide6.QtWidgets import (
 )
 import requests
 from .apirequest import GetApiDataWindow
-
-BASE_URL = "http://www.omdbapi.com/?apikey="
+from ..defaults import BASE_URL
 
 
 class AddWindow(QDialog):
@@ -107,6 +106,7 @@ class AddWindow(QDialog):
             "rating": self.entry_rating.text()
         }
         self.main_window.current_database.append(new_movie)
+        self.main_window.set_unsaved_changes(True)
         self.main_window.update_table_to_match_db()
         self.main_window.update_availability_of_menu_items()
 
