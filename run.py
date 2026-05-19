@@ -1,6 +1,6 @@
 import sys
 
-from movieorg.movieorg import Application
+from movieorg.app import Application
 
 if __name__ == "__main__":
     app = Application()
