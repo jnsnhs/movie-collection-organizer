@@ -12,12 +12,13 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QFileDialog,
     QMessageBox,
-    QAbstractItemView
+    QAbstractItemView,
+    QMenuBar
 )
-from PySide6.QtGui import QIcon, QAction
+from PySide6.QtGui import QAction
 from PySide6.QtCore import Qt
 
-from ..defaults import CONFIG_FILE_NAME, MOVIE_ATTRIBUTES
+from ..defaults import CONFIG_FILE_NAME, MOVIE_ATTRIBUTES, APP_TITLE
 from ..gui.addmovie import AddWindow
 from ..gui.editmovie import EditWindow
 from ..gui.settings import SettingsWindow
@@ -28,128 +29,138 @@ class MainWindow(QMainWindow):
 
     def __init__(self) -> None:
         super().__init__()
-        self.app_title = "Movie Collection Organizer"
-        self.setWindowTitle(f"Untitled - {self.app_title}")
-        self.setMinimumWidth(800)
-        self.setMinimumHeight(480)
-
         self.api_key, self.db_path = self.load_config_data(CONFIG_FILE_NAME)
         self.name_of_file = ""
         self.unsaved_changes = False
+        self.configure_window()
+        self.create_widgets()
+        self.setCentralWidget(self.create_central_widget())
+        self.register_events()
+        self.import_database()
 
+    def import_database(self) -> None:
+        if self.db_path:
+            try:
+                self.import_db_from_json_file(self.db_path)
+            except Exception:
+                message_box = self.create_error_message(
+                    "Unable to import default database.")
+                message_box.exec()
+
+    def create_error_message(self, text_to_display: str) -> QMessageBox:
+        message_box = QMessageBox()
+        message_box.setWindowTitle("Error")
+        message_box.setText(text_to_display)
+        message_box.setStandardButtons(QMessageBox.Ok)  # type: ignore
+        message_box.setIcon(QMessageBox.Critical)  # type: ignore
+        return message_box
+
+    def configure_window(self) -> None:
+        self.setWindowTitle(f"Untitled - {APP_TITLE}")
+        self.setMinimumWidth(800)
+        self.setMinimumHeight(480)
+
+    def create_widgets(self) -> None:
         self.status_bar = self.statusBar()
         self.database_summary = QLabel()
         self.status_bar.addPermanentWidget(self.database_summary)
-
-        menu_bar = self.menuBar()
-        menu_bar.setNativeMenuBar(True)
-        self.initialize_submenus(menu_bar)
-        menu_bar.hovered.connect(lambda: self.on_hover_menubar())
-
-        self.table = self.initialize_table()
+        self.menu_bar = self.create_menu_bar()
+        self.table = self.create_table()
+        self.search_field = self.create_search_field()
         self.reset_database()
         self.update_table_to_match_db()
         self.update_availability_of_menu_items()
 
-        self.search_field = self.initialize_search_field()
+    def create_menu_bar(self) -> QMenuBar:
+        menu_bar = self.menuBar()
+        menu_bar.setNativeMenuBar(True)
+        self.create_submenus(menu_bar)
+        return menu_bar
 
-        container = QWidget()
+    def register_events(self) -> None:
+        self.menu_bar.hovered.connect(
+            lambda: self.update_availability_of_menu_items())
+        self.search_field.textChanged.connect(
+            lambda x: self.filter_table(x))
+        self.new_action.triggered.connect(lambda: self.on_click_new())
+        self.open_action.triggered.connect(lambda: self.on_click_open())
+        self.save_action.triggered.connect(lambda: self.on_click_save())
+        self.save_as_action.triggered.connect(lambda: self.on_click_save_as())
+        self.settings_action.triggered.connect(
+            lambda: self.on_click_settings())
+        self.exit_action.triggered.connect(lambda: self.on_click_exit())
+        self.add_action.triggered.connect(lambda: self.on_click_add_movie())
+        self.edit_action.triggered.connect(lambda: self.on_click_edit_movie())
+        self.remove_action.triggered.connect(
+            lambda: self.on_click_remove_movie())
+        self.stats_action.triggered.connect(lambda: self.on_click_statistics())
+        self.about_action.triggered.connect(lambda: self.on_click_about())
+
+    def register_shortcuts(self) -> None:
+        self.new_action.setShortcut('Ctrl+N')
+        self.open_action.setShortcut('Ctrl+O')
+        self.save_action.setShortcut('Ctrl+S')
+        self.save_as_action.setShortcut('Ctrl+Shift+S')
+
+    def create_central_widget(self) -> QWidget:
+        central_widget = QWidget()
         layout = QVBoxLayout()
         layout.addWidget(self.search_field)
         layout.addWidget(self.table)
-        container.setLayout(layout)
-        self.setCentralWidget(container)
+        central_widget.setLayout(layout)
+        return central_widget
 
-        if self.db_path:
-            try:
-                self.import_db_from_json_file(self.db_path)
-            except Exception as exception:
-                print("Unable to import default database.")
-                print(exception)
-
-    def on_hover_menubar(self):
-        self.update_availability_of_menu_items()
-
-    def initialize_search_field(self) -> QLineEdit:
+    def create_search_field(self) -> QLineEdit:
         search_field = QLineEdit()
         search_field.setPlaceholderText("Search...")
-        search_field.textChanged.connect(lambda x: self.filter_table(x))
         return search_field
 
-    def initialize_submenus(self, menu_bar) -> None:
+    def add_actions_to_file_menu(self, file_menu) -> None:
+        self.new_action = QAction('&New File', self)
+        file_menu.addAction(self.new_action)
+        file_menu.addSeparator()
+        self.open_action = QAction('&Open File...', self)
+        file_menu.addAction(self.open_action)
+        file_menu.addSeparator()
+        self.save_action = QAction('&Save', self)
+        file_menu.addAction(self.save_action)
+        self.save_as_action = QAction('&Save As...', self)
+        file_menu.addAction(self.save_as_action)
+        file_menu.addSeparator()
+        self.settings_action = QAction("Settings...", self)
+        file_menu.addAction(self.settings_action)
+        file_menu.addSeparator()
+        self.exit_action = QAction("Exit", self)
+        file_menu.addAction(self.exit_action)
+
+    def add_actions_to_edit_menu(self, edit_menu) -> None:
+        self.add_action = QAction('&Insert Movie...', self)
+        self.add_action.setShortcut("Ctrl+I")
+        edit_menu.addAction(self.add_action)
+        self.edit_action = QAction('&Edit Movie...', self)
+        edit_menu.addAction(self.edit_action)
+        self.remove_action = QAction("Remove Movie(s)", self)
+        edit_menu.addAction(self.remove_action)
+
+    def add_actions_to_view_menu(self, view_menu) -> None:
+        self.stats_action = QAction('&Statistics...', self)
+        view_menu.addAction(self.stats_action)
+
+    def add_actions_to_help_menu(self, help_menu) -> None:
+        self.about_action = QAction(text='About', parent=self)
+        help_menu.addAction(self.about_action)
+
+    def create_submenus(self, menu_bar) -> None:
         file_menu = menu_bar.addMenu("File")
         edit_menu = menu_bar.addMenu("Edit")
         view_menu = menu_bar.addMenu("View")
         help_menu = menu_bar.addMenu("Help")
+        self.add_actions_to_file_menu(file_menu)
+        self.add_actions_to_edit_menu(edit_menu)
+        self.add_actions_to_view_menu(view_menu)
+        self.add_actions_to_help_menu(help_menu)
 
-        # new menu item
-        new_action = QAction(QIcon('./assets/new.png'), '&New File', self)
-        new_action.triggered.connect(lambda: self.on_click_new())
-        new_action.setShortcut('Ctrl+N')
-        file_menu.addAction(new_action)
-
-        file_menu.addSeparator()
-
-        # open menu item
-        open_action = QAction('&Open File...', self)
-        open_action.triggered.connect(lambda: self.on_click_open())
-        open_action.setShortcut('Ctrl+O')
-        file_menu.addAction(open_action)
-
-        file_menu.addSeparator()
-
-        # save menu item
-        save_action = QAction('&Save', self)
-        save_action.triggered.connect(lambda: self.on_click_save())
-        save_action.setShortcut('Ctrl+S')
-        file_menu.addAction(save_action)
-
-        # save as menu item
-        save_as_action = QAction('&Save As...', self)
-        save_as_action.triggered.connect(lambda: self.on_click_save_as())
-        save_as_action.setShortcut('Ctrl+Shift+S')
-        file_menu.addAction(save_as_action)
-
-        file_menu.addSeparator()
-
-        # settings menu item
-        settings_action = QAction("Settings...", self)
-        settings_action.triggered.connect(lambda: self.on_click_settings())
-        file_menu.addAction(settings_action)
-
-        file_menu.addSeparator()
-
-        exit_action = QAction("Exit", self)
-        exit_action.triggered.connect(lambda: self.on_click_exit())
-        file_menu.addAction(exit_action)
-
-        # add menu item
-        add_action = QAction('&Insert Movie...', self)
-        add_action.triggered.connect(lambda: self.on_click_add_movie())
-        add_action.setShortcut("Ctrl+I")
-        edit_menu.addAction(add_action)
-
-        self.edit_action = QAction('&Edit Movie...', self)
-        self.edit_action.triggered.connect(lambda: self.on_click_edit_movie())
-        edit_menu.addAction(self.edit_action)
-
-        # remove item
-        self.remove_action = QAction("Remove Movie(s)", self)
-        self.remove_action.triggered.connect(
-            lambda: self.on_click_remove_movie())
-        edit_menu.addAction(self.remove_action)
-
-        # statistics item
-        self.stats_action = QAction('&Statistics...', self)
-        self.stats_action.triggered.connect(lambda: self.on_click_statistics())
-        view_menu.addAction(self.stats_action)
-
-        # about menu item
-        about_action = QAction(text='About', parent=self)
-        about_action.triggered.connect(lambda: self.on_click_about())
-        help_menu.addAction(about_action)
-
-    def initialize_table(self) -> QTableWidget:
+    def create_table(self) -> QTableWidget:
         table = QTableWidget()
         table.horizontalHeader().setStretchLastSection(False)
         table.verticalHeader().setVisible(False)
@@ -166,11 +177,8 @@ class MainWindow(QMainWindow):
         table.horizontalHeader().setSectionsMovable(True)
         table.setSelectionBehavior(
             QTableWidget.SelectionBehavior.SelectRows)
-        table.cellDoubleClicked.connect(lambda: self.on_doubleclick_cell())
+        table.cellDoubleClicked.connect(lambda: self.open_edit_movie_dialog())
         return table
-
-    def on_doubleclick_cell(self):
-        self.open_edit_movie_dialog()
 
     def on_click_settings(self) -> None:
         settings_window = SettingsWindow(self)
@@ -200,7 +208,7 @@ class MainWindow(QMainWindow):
                 "Database has been saved.", timeout=2000)
             self.name_of_file = path.split(self.path_of_current_db)[1]
             self.set_unsaved_changes(False)
-            self.setWindowTitle(f"{self.name_of_file} - {self.app_title}")
+            self.setWindowTitle(f"{self.name_of_file} - {APP_TITLE}")
         else:
             self.on_click_save_as()
 
@@ -264,7 +272,7 @@ class MainWindow(QMainWindow):
             self.last_save_of_current_db = deepcopy(self.current_database)
             self.name_of_file = path.split(self.path_of_current_db)[1]
             self.setWindowTitle(
-                f"{self.name_of_file} - {self.app_title}")
+                f"{self.name_of_file} - {APP_TITLE}")
             self.set_unsaved_changes(False)
             self.update_table_to_match_db()
         else:
@@ -375,7 +383,7 @@ class MainWindow(QMainWindow):
         self.update_availability_of_menu_items()
         self.update_status_bar_msg()
         self.setWindowTitle(
-            f"Untitled - {self.app_title}")
+            f"Untitled - {APP_TITLE}")
 
     def add_new_bottom_row(self, new_movie_data: dict) -> None:
         row_index = self.table.rowCount()
@@ -456,10 +464,10 @@ class MainWindow(QMainWindow):
         self.unsaved_changes = state
         if self.unsaved_changes:
             self.setWindowTitle(
-                f"{self.name_of_file} [unsaved] - {self.app_title}")
+                f"{self.name_of_file} [unsaved] - {APP_TITLE}")
         else:
             self.setWindowTitle(
-                f"{self.name_of_file} - {self.app_title}")
+                f"{self.name_of_file} - {APP_TITLE}")
 
     def on_click_exit(self) -> None:
         print("Exit Application")

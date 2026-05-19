@@ -11,32 +11,37 @@ from matplotlib.figure import Figure
 from ..defaults import APP_TITLE
 
 
-class MplCanvas(Canvas):
-
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
-        fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = fig.add_subplot(111)
-        super().__init__(fig)
-
-
 class StatisticsWindow(QDialog):
 
     def __init__(self, database) -> None:
         super().__init__()
+        self.current_database = database
+        self.configure_window()
+        self.create_widgets()
+        self.setLayout(self.create_layout())
+
+    def configure_window(self) -> None:
         self.setWindowTitle(f"{APP_TITLE} - Statistics")
-        tabs = QTabWidget(self)
-        tabs.addTab(self.create_runtimes_plot(database), "Runtimes")
-        tabs.addTab(self.create_genres_plot(database), "Genres")
-        tabs.addTab(self.create_decades_plot(database), "Decades")
+
+    def create_widgets(self) -> None:
+        self.tabs = QTabWidget(self)
+        self.tabs.addTab(self.create_runtimes_plot(
+            self.current_database), "Runtimes")
+        self.tabs.addTab(self.create_genres_plot(
+            self.current_database), "Genres")
+        self.tabs.addTab(self.create_decades_plot(
+            self.current_database), "Decades")
+
+    def create_layout(self) -> QVBoxLayout:
         layout = QVBoxLayout()
-        layout.addWidget(tabs)
-        self.setLayout(layout)
+        layout.addWidget(self.tabs)
+        return layout
 
     def create_runtimes_plot(self, data: dict) -> QWidget:
         widget = QWidget(self)
         runtimes_data = [
             int(movie["runtime"].strip(" min")) for movie in data]
-        plot = MplCanvas(self, width=5, height=4, dpi=100)
+        plot = MplCanvas()
         plot.axes.hist(runtimes_data)
         plot.axes.set_title("Movies by Runtime")
         plot.axes.set_xlim(left=0)
@@ -72,7 +77,7 @@ class StatisticsWindow(QDialog):
             genre_dict["Others"] = minor_genres_count
         genre_frequencies = array(list(genre_dict.values()))
         genre_labels = list(genre_dict.keys())
-        plot = MplCanvas(self, width=5, height=4, dpi=100)
+        plot = MplCanvas()
         plot.axes.pie(genre_frequencies, labels=genre_labels)
         plot.axes.set_title("Movies by Genre")
         layout = QVBoxLayout()
@@ -92,7 +97,7 @@ class StatisticsWindow(QDialog):
                 if release_year // 10 == decade // 10:
                     decades_frequencies[decades.index(decade)] += 1
                     break
-        plot = MplCanvas(self, width=5, height=4, dpi=100)
+        plot = MplCanvas()
         decades_labels_short = [label[2:] for label in decades_labels]
         plot.axes.bar(
             array(decades_labels_short), array(decades_frequencies))
@@ -101,3 +106,10 @@ class StatisticsWindow(QDialog):
         layout.addWidget(plot)
         widget.setLayout(layout)
         return widget
+
+
+class MplCanvas(Canvas):
+    def __init__(self, width=5, height=4, dpi=100):
+        fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = fig.add_subplot(111)
+        super().__init__(fig)

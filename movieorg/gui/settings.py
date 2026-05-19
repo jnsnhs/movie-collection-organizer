@@ -19,36 +19,41 @@ class SettingsWindow(QDialog):
     def __init__(self, parent):
         super().__init__()
         self.parent_window = parent
-        self.setWindowTitle("Settings")
         self.api_key, self.db_path = self.load_config_data(CONFIG_FILE_NAME)
+        self.configure_window()
+        self.create_widgets()
+        self.setLayout(self.create_layout())
+        self.register_events()
 
+    def configure_window(self) -> None:
+        self.setWindowTitle("Settings")
+
+    def create_widgets(self) -> None:
         QBtns = QDialogButtonBox.Ok | QDialogButtonBox.Cancel  # type: ignore
         self.buttonBox = QDialogButtonBox(QBtns)
+        self.entry_apikey = self.create_entry_apikey()
+        self.label_apikey = QLabel("API Key")
+        self.label_default_db = QLabel(self.db_path)
+        self.button_choose_db = QPushButton("Choose File...")
+
+    def create_layout(self) -> QVBoxLayout:
+        layout = QVBoxLayout()
+        layout.addWidget(self.label_default_db)
+        layout.addWidget(self.button_choose_db)
+        layout.addWidget(self.label_apikey)
+        layout.addWidget(self.entry_apikey)
+        layout.addWidget(self.buttonBox)
+        return layout
+
+    def register_events(self) -> None:
+        self.button_choose_db.clicked.connect(lambda: self.set_defaut_path())
         self.buttonBox.accepted.connect(lambda: self.on_click_button_ok())
         self.buttonBox.rejected.connect(lambda: self.on_click_button_cancel())
 
-        self.entry_apikey = self.init_entry_apikey()
-        label_apikey = QLabel("API Key")
-
-        self.label_default_db = QLabel(self.db_path)
-        button_choose_db = self.init_button_choose_file()
-        button_choose_db.clicked.connect(lambda: self.set_defaut_path())
-
-        layout = QVBoxLayout()
-        layout.addWidget(self.label_default_db)
-        layout.addWidget(button_choose_db)
-        layout.addWidget(label_apikey)
-        layout.addWidget(self.entry_apikey)
-        layout.addWidget(self.buttonBox)
-        self.setLayout(layout)
-
-    def init_entry_apikey(self) -> QLineEdit:
+    def create_entry_apikey(self) -> QLineEdit:
         entry_field = QLineEdit()
         entry_field.setText(self.api_key)
         return entry_field
-
-    def init_button_choose_file(self) -> QPushButton:
-        return QPushButton("Choose File...")
 
     def on_click_button_ok(self):
         api_key: str = self.entry_apikey.text() + "\n"
@@ -60,16 +65,20 @@ class SettingsWindow(QDialog):
             with open(CONFIG_FILE_NAME, "wt", encoding="utf8") as file:
                 config.write(file)
         except Exception as exception:
-            msg = QMessageBox()
-            msg.setWindowTitle("Error")
-            msg.setText(f"Config file could not be written.\n\n{exception}")
-            msg.setStandardButtons(QMessageBox.Ok)  # type: ignore
-            msg.setIcon(QMessageBox.Critical)  # type: ignore
-            msg.exec()
-        self.close()
+            message = self.create_error_message(exception)
+            message.exec()
+        self.close_window()
+
+    def create_error_message(self, exception: Exception) -> QMessageBox:
+        message = QMessageBox()
+        message.setWindowTitle("Error")
+        message.setText(f"Config file could not be written.\n\n{exception}")
+        message.setStandardButtons(QMessageBox.Ok)  # type: ignore
+        message.setIcon(QMessageBox.Critical)  # type: ignore
+        return message
 
     def on_click_button_cancel(self):
-        self.close()
+        self.close_window()
 
     def set_defaut_path(self):
         filename, _ = QFileDialog.getOpenFileName(
@@ -99,3 +108,6 @@ class SettingsWindow(QDialog):
             print("valid api key")
         else:
             print("key is invalid")
+
+    def close_window(self) -> None:
+        self.close()

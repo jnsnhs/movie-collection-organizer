@@ -11,14 +11,22 @@ class EditWindow(QDialog):
 
     def __init__(self, parent, database, selected_rows) -> None:
         super().__init__()
-        self.setMinimumWidth(320)
         self.main_window = parent
-        self.database = database
+        self.current_database = database
         self.selected_movie_index = selected_rows[0].row()
-        title = database[self.selected_movie_index]["title"]
-        self.setWindowTitle(f"Edit „{title}“")
+        self.create_widgets()
+        self.setLayout(self.create_layout())
+        self.register_events()
+        self.fill_entry_fields_with_movie_data()
 
+    def configure_window(self) -> None:
+        self.setMinimumWidth(320)
+        movie_title = self.current_database[self.selected_movie_index]["title"]
+        self.setWindowTitle(f"Edit „{movie_title}“")
+
+    def create_widgets(self) -> None:
         self.entry_title = QLineEdit()
+        self.entry_title.setFocus()
         self.entry_director = QLineEdit()
         self.entry_writer = QLineEdit()
         self.entry_actors = QLineEdit()
@@ -27,14 +35,10 @@ class EditWindow(QDialog):
         self.entry_language = QLineEdit()
         self.entry_genre = QLineEdit()
         self.entry_rating = QSpinBox(minimum=0, maximum=5)
-
-        self.fill_movie_data()
-
         self.buttonBox = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel)  # type: ignore
-        self.buttonBox.accepted.connect(lambda: self.on_click_button_ok())
-        self.buttonBox.rejected.connect(lambda: self.on_click_button_cancel())
 
+    def create_layout(self) -> QFormLayout:
         layout = QFormLayout()
         layout.addRow("Title", self.entry_title)
         layout.addRow("Director:", self.entry_director)
@@ -46,11 +50,14 @@ class EditWindow(QDialog):
         layout.addRow("Genre:", self.entry_genre)
         layout.addRow("Rating:", self.entry_rating)
         layout.addWidget(self.buttonBox)
-        self.setLayout(layout)
-        self.entry_title.setFocus()
+        return layout
 
-    def fill_movie_data(self):
-        movie = self.database[self.selected_movie_index]
+    def register_events(self) -> None:
+        self.buttonBox.accepted.connect(lambda: self.on_click_button_ok())
+        self.buttonBox.rejected.connect(lambda: self.on_click_button_cancel())
+
+    def fill_entry_fields_with_movie_data(self) -> None:
+        movie = self.current_database[self.selected_movie_index]
         self.entry_title.setText(movie["title"])
         self.entry_director.setText(movie["director"])
         self.entry_writer.setText(movie["writer"])
@@ -61,8 +68,8 @@ class EditWindow(QDialog):
         self.entry_genre.setText(movie["genre"])
         self.entry_rating.setValue(int(movie["rating"]))
 
-    def change_database_values(self, movie_index) -> None:
-        movie = self.database[movie_index]
+    def update_database_values(self, movie_index: int) -> None:
+        movie = self.current_database[movie_index]
         movie["title"] = self.entry_title.text()
         movie["director"] = self.entry_director.text()
         movie["writer"] = self.entry_writer.text()
@@ -73,10 +80,13 @@ class EditWindow(QDialog):
         movie["genre"] = self.entry_genre.text()
         movie["rating"] = self.entry_rating.text()
 
-    def on_click_button_ok(self):
-        self.change_database_values(self.selected_movie_index)
+    def on_click_button_ok(self) -> None:
+        self.update_database_values(self.selected_movie_index)
         self.main_window.set_unsaved_changes(True)
-        self.close()
+        self.close_window()
 
     def on_click_button_cancel(self) -> None:
+        self.close_window()
+
+    def close_window(self) -> None:
         self.close()
