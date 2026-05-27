@@ -10,7 +10,7 @@ While the application allows you to enter movie details manually, it was primari
 
 The application also provides descriptive data analysis based on your collection. Attributes like runtimes, decades, and genres are displayed as visual plots to give you a statistical summary of your library.
 
-The built-in search functionality supports both keyword matching and exclusion—you can easily exclude specific strings from your search results by adding a `-` prefix to the word.
+The built-in search functionality supports both keyword matching and exclusion. You can easily exclude specific strings from your search results by adding a `-` prefix to the word.
 
 As a *passion project* driven by my own love for moveis, I plan to add several new features in the near future, including:
 
