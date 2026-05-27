@@ -6,7 +6,7 @@
 
 ## Features
 
-While the application allows you to enter movie details manually, it was primarily designed to automatically fetch data from the OMDb API. After obtaining a free [API key](https://www.omdbapi.com/), simply navigate to **File > Settings** and enter your key. The option to fetch data from OMDb will automatically appear in the **Add Movie** window.
+While the application allows you to enter movie details manually, it was primarily designed to automatically fetch data from the OMDb API. After obtaining a free [API key](https://www.omdbapi.com/), simply navigate to **File > Settings** and enter your key. The option to fetch data from OMDb will automatically appear in the *Add Movie* window.
 
 The application also provides descriptive data analysis based on your collection. Attributes like runtimes, decades, and genres are displayed as visual plots to give you a statistical summary of your library.
 
